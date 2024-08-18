@@ -81,7 +81,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
         removeView()
     }
 
-    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String) {
+    override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences, key: String?) {
         when (key) {
             SIDELINE -> {
                 showSideline = viewModel.getBooleanSp(SIDELINE, true)

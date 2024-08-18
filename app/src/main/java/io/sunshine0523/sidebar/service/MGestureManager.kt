@@ -2,8 +2,8 @@ package io.sunshine0523.sidebar.service
 
 import android.content.Context
 import android.view.GestureDetector
-import android.view.MotionEvent
 import android.view.GestureDetector.SimpleOnGestureListener
+import android.view.MotionEvent
 import kotlin.math.abs
 
 class MGestureManager(context: Context, private val mListener: MGestureListener) {
@@ -36,6 +36,7 @@ class MGestureManager(context: Context, private val mListener: MGestureListener)
 
     private inner class SimpleGesture : SimpleOnGestureListener() {
 
+        @Suppress("NOTHING_TO_OVERRIDE", "ACCIDENTAL_OVERRIDE")
         override fun onFling(
             e1: MotionEvent, e2: MotionEvent, velocityX: Float,
             velocityY: Float

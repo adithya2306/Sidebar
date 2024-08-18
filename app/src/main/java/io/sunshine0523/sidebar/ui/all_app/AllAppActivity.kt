@@ -2,25 +2,21 @@ package io.sunshine0523.sidebar.ui.all_app
 
 import android.content.Intent
 import android.os.Bundle
-import androidx.recyclerview.widget.GridLayoutManager
-import io.sunshine0523.sidebar.databinding.ActivityAllAppBinding
-import io.sunshine0523.sidebar.utils.Debug
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.setContent
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.Modifier
+import io.sunshine0523.sidebar.bean.AppInfo
+import io.sunshine0523.sidebar.ui.theme.SidebarTheme
 import io.sunshine0523.sidebar.utils.Logger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
-import rikka.material.app.MaterialActivity
-import rikka.recyclerview.addFastScroller
 
 /**
  * @author KindBrave
  * @since 2023/10/25
  */
-class AllAppActivity: MaterialActivity() {
+class AllAppActivity: ComponentActivity() {
     private val logger = Logger(TAG)
-    private lateinit var binding: ActivityAllAppBinding
     private lateinit var viewModel: AllAppViewModel
-    private val scope = MainScope()
 
     companion object {
         private const val PACKAGE = "com.sunshine.freeform"
@@ -30,38 +26,27 @@ class AllAppActivity: MaterialActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        binding = ActivityAllAppBinding.inflate(layoutInflater)
         viewModel = AllAppViewModel(application)
-        setContentView(binding.root)
 
-        initRecyclerView()
+        setContent {
+            SidebarTheme {
+                AllAppGridView(
+                    viewModel = viewModel,
+                    onClick = { appInfo -> onClick(appInfo) },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
+        }
     }
 
-    private fun initRecyclerView() {
-        val adapter = AllAppRecyclerView(object : AllAppRecyclerView.Callback {
-            override fun onClick(packageName: String, activityName: String, userId: Int) {
-                val intent = Intent(ACTION).apply {
-                    setPackage(PACKAGE)
-                    putExtra("packageName", packageName)
-                    putExtra("activityName", activityName)
-                    putExtra("userId", userId)
-                }
-                sendBroadcast(intent)
-                finish()
-            }
-        })
-        binding.recyclerView.apply {
-            layoutManager = GridLayoutManager(this@AllAppActivity, 4)
-            setAdapter(adapter)
-            addFastScroller()
+    private fun onClick(appInfo: AppInfo) {
+        val intent = Intent(ACTION).apply {
+            setPackage(PACKAGE)
+            putExtra("packageName", appInfo.packageName)
+            putExtra("activityName", appInfo.activityName)
+            putExtra("userId", appInfo.userId)
         }
-        scope.launch(Dispatchers.IO) {
-            viewModel.appListFlow.collect {
-                if (Debug.isDebug) logger.d("changed: $it")
-                launch(Dispatchers.Main) {
-                    adapter.updateList(it)
-                }
-            }
-        }
+        sendBroadcast(intent)
+        finish()
     }
 }

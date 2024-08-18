@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.os.UserHandle
 import android.os.UserManager
 import androidx.lifecycle.AndroidViewModel
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.viewModelScope
 import io.sunshine0523.sidebar.bean.AppInfo
 import io.sunshine0523.sidebar.systemapi.UserHandleHidden
@@ -15,9 +14,9 @@ import io.sunshine0523.sidebar.utils.Debug
 import io.sunshine0523.sidebar.utils.Logger
 import io.sunshine0523.sidebar.utils.getInfo
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import java.text.Collator
 import java.util.Collections
@@ -30,8 +29,8 @@ import java.util.Locale
 class AllAppViewModel(private val application: Application): AndroidViewModel(application) {
     private val logger = Logger("AllAppViewModel")
     private val allAppList = ArrayList<AppInfo>()
-    val appListFlow: Flow<List<AppInfo>>
-        get() = _appList
+    val appListFlow: SharedFlow<List<AppInfo>>
+        get() = _appList.asSharedFlow()
     private val _appList = MutableSharedFlow<ArrayList<AppInfo>>()
 
     private val userManager: UserManager = application.getSystemService(Context.USER_SERVICE) as UserManager

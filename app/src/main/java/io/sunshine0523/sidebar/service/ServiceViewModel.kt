@@ -8,7 +8,6 @@ import android.content.SharedPreferences.OnSharedPreferenceChangeListener
 import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.os.UserHandle
-import android.os.UserManager
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -21,12 +20,12 @@ import io.sunshine0523.sidebar.utils.Debug
 import io.sunshine0523.sidebar.utils.Logger
 import io.sunshine0523.sidebar.utils.getInfo
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
-import java.text.Collator
 import java.util.Collections
-import java.util.Locale
 
 
 /**
@@ -39,14 +38,22 @@ class ServiceViewModel(private val application: Application): AndroidViewModel(a
     private val repository = DatabaseRepository(application)
     private val sp = application.applicationContext.getSharedPreferences(SidebarApplication.CONFIG, Context.MODE_PRIVATE)
 
-    val sidebarAppListFlow: Flow<List<AppInfo>>
-        get() = _sidebarAppList
+    val sidebarAppListFlow: StateFlow<List<AppInfo>>
+        get() = _sidebarAppList.asStateFlow()
     private val _sidebarAppList = MutableStateFlow<ArrayList<AppInfo>>(ArrayList())
 
     private val launcherApps: LauncherApps = application.getSystemService(Context.LAUNCHER_APPS_SERVICE) as LauncherApps
     private val usageStatsManager = application.getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
 
     private val lastTimeUsedComparator = LastTimeUsedComparator()
+
+    val allAppActivity = AppInfo(
+        "",
+        AppCompatResources.getDrawable(application.applicationContext, R.drawable.ic_all)!!,
+        ALL_APP_PACKAGE,
+        ALL_APP_ACTIVITY,
+        0
+    )
 
     companion object {
         private const val ALL_APP_PACKAGE = "io.sunshine0523.sidebar"
@@ -60,39 +67,37 @@ class ServiceViewModel(private val application: Application): AndroidViewModel(a
 
     private fun initSidebarAppList() {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.getAllSidebarAppsByFlow().collect { sidebarAppList ->
-                if (Debug.isDebug) logger.d("$sidebarAppList")
-                _sidebarAppList.value.clear()
-                _sidebarAppList.value.add(
-                    AppInfo(
-                        "",
-                        AppCompatResources.getDrawable(application.applicationContext, R.drawable.ic_all)!!,
-                        ALL_APP_PACKAGE,
-                        ALL_APP_ACTIVITY,
-                        0
-                    )
-                )
-                sidebarAppList?.forEach { entity ->
-                    runCatching {
-                        val info = application.packageManager.getApplicationInfo(entity.packageName, PackageManager.GET_ACTIVITIES)
-                        _sidebarAppList.value.add(
-                            AppInfo(
-                                "${info.loadLabel(application.packageManager)}",
-                                info.loadIcon(application.packageManager),
-                                entity.packageName,
-                                entity.activityName,
-                                entity.userId
-                            )
-                        )
-                    }.onFailure {
-                        repository.deleteSidebarApp(entity.packageName, entity.activityName, entity.userId)
+            repository.getAllSidebarAppsByFlow()
+                .combine(getRecentAppListFlow()) { sidebarApps, recentApps ->
+                    mutableListOf<AppInfo>().apply {
+                        if (Debug.isDebug) logger.d("sidebarApps=$sidebarApps recentApps=$recentApps")
+                        sidebarApps?.forEach { entity ->
+                            runCatching {
+                                val info = application.packageManager.getApplicationInfo(entity.packageName, PackageManager.GET_ACTIVITIES)
+                                add(
+                                    AppInfo(
+                                        "${info.loadLabel(application.packageManager)}",
+                                        info.loadIcon(application.packageManager),
+                                        entity.packageName,
+                                        entity.activityName,
+                                        entity.userId
+                                    )
+                                )
+                            }.onFailure {
+                                repository.deleteSidebarApp(entity.packageName, entity.activityName, entity.userId)
+                            }
+                        }
+                        addAll(recentApps)
                     }
                 }
-            }
+                .collect { sidebarAppList ->
+                    if (Debug.isDebug) logger.d("combinedList=$sidebarAppList")
+                    _sidebarAppList.value = sidebarAppList as ArrayList<AppInfo>
+                }
         }
     }
 
-    suspend fun getRecentAppListFlow(): MutableStateFlow<ArrayList<AppInfo>> {
+    private suspend fun getRecentAppListFlow(): MutableStateFlow<ArrayList<AppInfo>> {
         val recentListFlow = MutableStateFlow<ArrayList<AppInfo>>(ArrayList())
         val currentTime = System.currentTimeMillis()
         val startTime = currentTime - 1000 * 60 * 60

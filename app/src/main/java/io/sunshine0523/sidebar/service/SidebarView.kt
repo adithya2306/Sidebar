@@ -5,19 +5,25 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
-import android.view.LayoutInflater
 import android.view.MotionEvent
+import android.view.View
 import android.view.WindowManager
 import android.view.WindowManager.LayoutParams
-import androidx.recyclerview.widget.LinearLayoutManager
-import io.sunshine0523.sidebar.app.SidebarApplication
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.ComposeView
+import androidx.compose.ui.platform.ViewCompositionStrategy
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.setViewTreeLifecycleOwner
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import io.sunshine0523.sidebar.bean.AppInfo
-import io.sunshine0523.sidebar.databinding.ViewSidebarBinding
+import io.sunshine0523.sidebar.ui.theme.SidebarTheme
 import io.sunshine0523.sidebar.utils.Debug
 import io.sunshine0523.sidebar.utils.Logger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 /**
@@ -28,14 +34,19 @@ class SidebarView(
     private val context: Context,
     private val viewModel: ServiceViewModel,
     private val callback: Callback
-) : SidebarRecyclerAdapter.Callback {
+) : SavedStateRegistryOwner {
 
-    private val dataBinding: ViewSidebarBinding = ViewSidebarBinding.inflate(LayoutInflater.from(context))
+    private val lifecycleRegistry = LifecycleRegistry(this)
+    override val lifecycle get() = lifecycleRegistry
+
+    private val savedStateRegistryController = SavedStateRegistryController.create(this)
+    override val savedStateRegistry get() = savedStateRegistryController.savedStateRegistry
+
+    private lateinit var composeView: View
     private var sidebarPositionX = 0
     private var sidebarPositionY = 0
     private val windowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     private val layoutParams = LayoutParams()
-    private val scope = MainScope()
     private val logger = Logger(TAG)
 
     companion object {
@@ -46,7 +57,11 @@ class SidebarView(
         private const val TAG = "SidebarView"
     }
 
-    override fun onClick(appInfo: AppInfo) {
+    init {
+        savedStateRegistryController.performRestore(null)
+    }
+
+    private fun onClick(appInfo: AppInfo) {
         val intent = Intent(ACTION).apply {
             setPackage(PACKAGE)
             putExtra("packageName", appInfo.packageName)
@@ -74,7 +89,7 @@ class SidebarView(
             0
         }
 
-        initRecyclerView()
+        initComposeView()
 
         layoutParams.apply {
             type = LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -88,9 +103,9 @@ class SidebarView(
             windowAnimations = android.R.style.Animation_Dialog
         }
 
-        dataBinding.root.translationX = sidebarPositionX * 1.0f * 200
+        composeView.translationX = sidebarPositionX * 1.0f * 200
 
-        dataBinding.root.setOnTouchListener { view, event ->
+        composeView.setOnTouchListener { view, event ->
             if (Debug.isDebug) logger.d("$view $event")
             if (event.action == MotionEvent.ACTION_UP) {
                 removeView()
@@ -100,33 +115,33 @@ class SidebarView(
         }
 
         runCatching {
-            windowManager.addView(dataBinding.root, layoutParams)
-            dataBinding.root.animate().translationX(0f).setDuration(300).start()
+            lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+            windowManager.addView(composeView, layoutParams)
+            composeView.animate().translationX(0f).setDuration(300).start()
         }
     }
 
     fun removeView() {
-        runCatching { windowManager.removeViewImmediate(dataBinding.root) }
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_DESTROY)
+        runCatching { windowManager.removeViewImmediate(composeView) }
         callback.onRemove()
     }
 
-    private fun initRecyclerView() {
-        val adapter = SidebarRecyclerAdapter(this@SidebarView)
-        dataBinding.recyclerView.adapter = adapter
-        dataBinding.recyclerView.layoutManager = LinearLayoutManager(context)
-        scope.launch(Dispatchers.IO) {
-            viewModel.sidebarAppListFlow.collect {
-                launch(Dispatchers.Main) {
-                    if (Debug.isDebug) logger.d("updateSidebarAppList $it")
-                    adapter.updateSidebarAppList(it)
-                }
-            }
-        }
-        scope.launch(Dispatchers.IO) {
-            viewModel.getRecentAppListFlow().collect {
-                launch(Dispatchers.Main) {
-                    if (Debug.isDebug) logger.d("updateRecentAppList $it")
-                    adapter.updateRecentAppList(it)
+    private fun initComposeView() {
+        lifecycleRegistry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        composeView = ComposeView(context).apply {
+            setViewTreeLifecycleOwner(this@SidebarView)
+            setViewTreeSavedStateRegistryOwner(this@SidebarView)
+            setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
+            setContent {
+                SidebarTheme {
+                    SidebarComposeView(
+                        viewModel = viewModel,
+                        onClick = { onClick(it) },
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .wrapContentWidth()
+                    )
                 }
             }
         }

@@ -8,16 +8,21 @@ plugins {
 
 android {
     namespace = "io.sunshine0523.sidebar"
-    compileSdk = 33
+    compileSdk = 34
 
     buildFeatures {
         dataBinding = true
+        compose = true
+    }
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.4.2"
     }
 
     defaultConfig {
         applicationId = "io.sunshine0523.sidebar"
-        minSdk = 29
-        targetSdk = 33
+        minSdk = 34
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
 
@@ -58,6 +63,11 @@ dependencies {
     implementation(libs.rikka.recyclerview.adapter)
     implementation(libs.rikka.recyclerview.ktx)
     implementation(libs.rikka.borderview)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.ui)
+    implementation(libs.androidx.material3)
+    implementation(libs.androidx.ui.graphics)
+    implementation(libs.accompanist.drawablepainter)
     ksp(libs.room.compiler)
     implementation(libs.room.ktx)
     compileOnly(files("libs/XposedBridgeAPI-89.jar"))
