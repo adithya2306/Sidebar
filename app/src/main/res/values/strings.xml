@@ -3,9 +3,10 @@
     <string name="xposed_description">A sidebar app for Mi-Freeform</string>
 
     <!--SettingsFragment-->
-    <string name="enable_sideline">Enable</string>
+    <string name="enable_sideline">Use Sidebar</string>
     <string name="require_package_usage_stats_permission">Please grant Sidebar PackageUsageStats permission</string>
-    <string name="sidebar_app_setting_label">Sidebar App Settings</string>
+    <string name="sidebar_label">Sidebar</string>
+    <string name="sidebar_app_setting_label">Sidebar Apps</string>
     <string name="sidebar_app">Sidebar App</string>
 
     <!--MainActivity-->

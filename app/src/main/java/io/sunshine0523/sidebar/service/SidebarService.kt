@@ -42,7 +42,7 @@ class SidebarService : Service(), SharedPreferences.OnSharedPreferenceChangeList
         private const val OFFSET = 20
 
         //是否展示侧边条
-        private const val SIDELINE = "sideline"
+        const val SIDELINE = "sideline"
         private const val SIDELINE_POSITION_X = "sideline_position_x"
         private const val SIDELINE_POSITION_Y_PORTRAIT = "sideline_position_y_portrait"
         private const val SIDELINE_POSITION_Y_LANDSCAPE = "sideline_position_y_landscape"
